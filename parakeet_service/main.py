@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .model import lifespan
 from .routes import router
@@ -15,6 +16,13 @@ def create_app() -> FastAPI:
             "with optional word/char/segment timestamps."
         ),
         lifespan=lifespan,
+    )
+    app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["http://localhost"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
     )
     app.include_router(router)
 

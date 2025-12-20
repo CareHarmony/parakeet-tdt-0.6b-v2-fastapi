@@ -3,14 +3,20 @@ services:
     build: .
     container_name: parakeet-stt
     ports:
-      - "8000:8000"
+      - "8888:8000"
     # env_file: .env               # TODO
     environment:
       LOG_LEVEL: "INFO"
     volumes:
       - ./data/cache:/root/.cache
-    # deploy:
-    #   resources:
+      - ./parakeet_service:/app/parakeet_service
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     #     limits:
     #       cpus: "4"
     #       memory: 4G

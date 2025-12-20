@@ -1,5 +1,7 @@
 from __future__ import annotations
+import aiofiles
 import asyncio
+import base64
 import shutil
 import tempfile
 from pathlib import Path
@@ -37,7 +39,7 @@ def health():
 async def transcribe_audio(
     request: Request,
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(..., media_type="audio/*"),
+    file: UploadFile = File(None, media_type="audio/*"),
     include_timestamps: bool = Form(
         False, description="Return char/word/segment offsets",
     ),
@@ -45,11 +47,33 @@ async def transcribe_audio(
         description="If true (default), split long audio into "
                     "~60s VAD-aligned chunks for batching"),
 ):
+    suffix = None
+    if file is None:
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail="No file uploaded and no valid JSON body found")
+        audio_b64 = body.get("audio")
+        if not audio_b64:
+            raise HTTPException(status_code=400, detail="Missing 'audio' key in JSON body")
+        try:
+            audio_bytes = base64.b64decode(audio_b64)
+            suffix=".wav"
+            try:
+                f = await aiofiles.tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=suffix)
+                await f.write(audio_bytes)
+                file = UploadFile(open(f.name, "rb"))
+            finally:
+                await f.close()
+            
+        except Exception as e:
+            print(e)
+            raise HTTPException(status_code=400, detail="Invalid base64 audio data")
     # Create temp file with appropriate extension
-    suffix = Path(file.filename or "").suffix or ".wav"
+    suffix = suffix if suffix is not None else Path(file.filename or "").suffix or ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp_path = Path(tmp.name)
-    
+        
     # Stream upload directly to processing with cancellation handling
     try:
         # Use FFmpeg for MP3 files to fix header issues
