@@ -38,8 +38,13 @@ COPY --from=builder /opt/venv /opt/venv
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app 
+    
+ENV WORKERS=1
 
 EXPOSE 8000
-CMD ["uvicorn", "parakeet_service.main:app", \
-     "--host", "0.0.0.0", "--port", "8000"]
+#CMD ["uvicorn", "parakeet_service.main:app", \
+#     "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Use the venv's Python/gunicorn to start the server
+CMD ["sh", "-c", "gunicorn parakeet_service.main:app -k uvicorn.workers.UvicornWorker -w ${WORKERS} -b 0.0.0.0:8000"]
+
